@@ -72,6 +72,12 @@ DEFAULT_MAX_HOUSE_BUCKET = 50
 DEFAULT_MAX_ADDR_TOKEN_FREQ = 80
 
 
+def extract_consonants(text: str) -> str:
+    """Extracts only ASCII consonants from a string (stripping vowels a, e, i, o, u)."""
+    vowels = set("aeiou")
+    return "".join(c for c in text.lower() if c.isalpha() and c not in vowels)
+
+
 # ==============================================================================
 # 1. Inverted Index Blocker
 # ==============================================================================
@@ -164,12 +170,28 @@ class InvertedIndexBlocker:
             for t in toks[:3]:
                 c_idx["addr_token"][t].append(eid)
 
-    def query(self, s1_rec: Dict[str, Any], active_rules: Set[str]) -> Set[str]:
-        """Queries the inverted indexes for a single Source 1 entity under the active rules."""
-        candidates: Set[str] = set()
+        # 8. Consonant skeleton key (vowel-invariant phonetic bridge)
+        eff_nosuff = remove_legal_suffix(effective_name)
+        if eff_nosuff:
+            skel = extract_consonants(eff_nosuff)
+            if len(skel) >= 4:
+                c_idx["consonant_skel"][skel[:5]].append(eid)
+
+        # 9. Address token + name prefix combination
+        if norm_addr and len(effective_name) >= 2:
+            toks = [t for t in norm_addr.split() if len(t) >= 4 and not t.isdigit() and t not in ADDR_STOPWORDS and self.addr_token_freq[country][t] <= 100]
+            for t in toks[:3]:
+                c_idx["addr_name"][(t, effective_name[:2])].append(eid)
+
+    def query_with_evidence(self, s1_rec: Dict[str, Any], active_rules: Set[str]) -> Dict[str, Set[str]]:
+        """
+        Queries the inverted indexes for a single Source 1 entity under the active rules,
+        returning a mapping of candidate_id -> set of blocking rule names that retrieved it.
+        """
+        evidence: Dict[str, Set[str]] = defaultdict(set)
         country = s1_rec.get("country", "")
         if country not in self.indexes:
-            return candidates
+            return evidence
 
         c_idx = self.indexes[country]
         norm = s1_rec.get("norm_name", "")
@@ -183,58 +205,70 @@ class InvertedIndexBlocker:
         if "exact" in active_rules:
             b = c_idx.get("exact_norm", {}).get(norm, [])
             if 0 < len(b) <= self.max_bucket_size:
-                candidates.update(b)
+                for eid in b:
+                    evidence[eid].add("blocked_exact_name")
             b = c_idx.get("exact_compact", {}).get(comp, [])
             if 0 < len(b) <= self.max_bucket_size:
-                candidates.update(b)
+                for eid in b:
+                    evidence[eid].add("blocked_compact_name")
             if nosuff:
                 b = c_idx.get("nosuff", {}).get(nosuff, [])
                 if 0 < len(b) <= self.max_bucket_size:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_suffix_name")
                 b = c_idx.get("nosuff_compact", {}).get(compact_string(nosuff), [])
                 if 0 < len(b) <= self.max_bucket_size:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_suffix_name")
 
         # Transliteration matching (query Latin S1 against Indic transliteration buckets)
         if "translit" in active_rules:
             b = c_idx.get("translit", {}).get(norm, [])
             if 0 < len(b) <= self.max_bucket_size:
-                candidates.update(b)
+                for eid in b:
+                    evidence[eid].add("blocked_translit")
             if nosuff:
                 b = c_idx.get("translit_nosuff", {}).get(nosuff, [])
                 if 0 < len(b) <= self.max_bucket_size:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_translit")
                 b = c_idx.get("translit_compact", {}).get(compact_string(nosuff), [])
                 if 0 < len(b) <= self.max_bucket_size:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_translit")
 
         # Postal code combined keys
         if "postal" in active_rules and post:
             if len(norm) >= 3:
                 b = c_idx.get("postal_prefix", {}).get((post, norm[:3]), [])
                 if 0 < len(b) <= self.max_bucket_size:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_postal")
             tokens = norm.split()
             if tokens and len(tokens[0]) >= 3:
                 b = c_idx.get("postal_token", {}).get((post, tokens[0]), [])
                 if 0 < len(b) <= self.max_bucket_size:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_postal")
 
         # House number combined keys
         if "house" in active_rules:
             if post and house:
                 b = c_idx.get("postal_house", {}).get((post, house), [])
                 if 0 < len(b) <= self.max_bucket_size:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_house")
             if house:
                 if len(norm) >= 3:
                     b = c_idx.get("house_prefix", {}).get((house, norm[:3]), [])
                     if 0 < len(b) <= self.max_bucket_size:
-                        candidates.update(b)
+                        for eid in b:
+                            evidence[eid].add("blocked_house")
                 # Specific house numbers with tight bucket cap
                 b = c_idx.get("house", {}).get(house, [])
                 if 0 < len(b) <= DEFAULT_MAX_HOUSE_BUCKET:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_house")
 
         # Discriminating address tokens
         if "address" in active_rules and norm_addr:
@@ -242,9 +276,34 @@ class InvertedIndexBlocker:
             for t in toks[:3]:
                 b = c_idx.get("addr_token", {}).get(t, [])
                 if 0 < len(b) <= DEFAULT_MAX_ADDR_TOKEN_FREQ:
-                    candidates.update(b)
+                    for eid in b:
+                        evidence[eid].add("blocked_address_token")
 
-        return candidates
+        # Consonant skeleton keys (vowel-invariant phonetic bridge)
+        if ("consonant_skel" in active_rules or "skel" in active_rules):
+            s1_nosuff = remove_legal_suffix(norm)
+            if s1_nosuff:
+                skel = extract_consonants(s1_nosuff)
+                if len(skel) >= 4:
+                    b = c_idx.get("consonant_skel", {}).get(skel[:5], [])
+                    if 0 < len(b) <= 200:
+                        for eid in b:
+                            evidence[eid].add("blocked_consonant_skeleton")
+
+        # Address token + name prefix combination
+        if "addr_name" in active_rules and norm_addr and len(norm) >= 2:
+            toks = [t for t in norm_addr.split() if len(t) >= 4 and not t.isdigit() and t not in ADDR_STOPWORDS and self.addr_token_freq[country][t] <= 100]
+            for t in toks[:3]:
+                b = c_idx.get("addr_name", {}).get((t, norm[:2]), [])
+                if 0 < len(b) <= 200:
+                    for eid in b:
+                        evidence[eid].add("blocked_address_name_combo")
+
+        return evidence
+
+    def query(self, s1_rec: Dict[str, Any], active_rules: Set[str]) -> Set[str]:
+        """Queries the inverted indexes for a single Source 1 entity under the active rules."""
+        return set(self.query_with_evidence(s1_rec, active_rules).keys())
 
 
 # ==============================================================================
@@ -433,6 +492,45 @@ class CandidateGenerator:
             for country, recs in by_country.items():
                 self.ngram_blocker.fit_target_records(country, recs)
 
+    def generate_candidates_with_evidence(
+        self,
+        s1_records: List[Dict[str, Any]]
+    ) -> Dict[str, Dict[str, Set[str]]]:
+        """
+        Generates candidate pairs and records the exact set of blocking rules
+        that contributed each candidate for every S1 record.
+        Returns: {s1_id: {candidate_id: set_of_rule_names}}
+        """
+        candidates_evidence: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
+
+        # 1. Inverted index retrieval with evidence
+        for s1_rec in s1_records:
+            eid = s1_rec["entity_id"]
+            ev = self.index_blocker.query_with_evidence(s1_rec, self.active_rules)
+            for cid, rules in ev.items():
+                if not cid.startswith("S1-"):
+                    candidates_evidence[eid][cid].update(rules)
+
+        # 2. Character n-gram retrieval
+        if self.use_ngram:
+            by_country = defaultdict(list)
+            for rec in s1_records:
+                by_country[rec.get("country", "")].append(rec)
+
+            for country, recs in by_country.items():
+                ngram_cands = self.ngram_blocker.query_batch(country, recs)
+                for eid, cset in ngram_cands.items():
+                    for cid in cset:
+                        if not cid.startswith("S1-"):
+                            candidates_evidence[eid][cid].add("blocked_char_ngram")
+
+        # Format output ensuring all queries are present
+        res: Dict[str, Dict[str, Set[str]]] = {}
+        for s1_rec in s1_records:
+            eid = s1_rec["entity_id"]
+            res[eid] = dict(candidates_evidence[eid])
+        return res
+
     def generate_candidates(
         self,
         s1_records: List[Dict[str, Any]]
@@ -444,34 +542,8 @@ class CandidateGenerator:
         - Never returns cross-country candidates.
         - Deduplicated output per S1 entity.
         """
-        candidates_map: Dict[str, Set[str]] = {}
-
-        # 1. Inverted index retrieval
-        for s1_rec in s1_records:
-            eid = s1_rec["entity_id"]
-            cands = self.index_blocker.query(s1_rec, self.active_rules)
-            candidates_map[eid] = cands
-
-        # 2. Character n-gram retrieval
-        if self.use_ngram:
-            by_country = defaultdict(list)
-            for rec in s1_records:
-                by_country[rec.get("country", "")].append(rec)
-
-            for country, recs in by_country.items():
-                ngram_cands = self.ngram_blocker.query_batch(country, recs)
-                for eid, cset in ngram_cands.items():
-                    candidates_map[eid].update(cset)
-
-        # 3. Candidate safety: enforce strict non-S1 and sorted determinism
-        final_candidates: Dict[str, List[str]] = {}
-        for s1_rec in s1_records:
-            eid = s1_rec["entity_id"]
-            raw_cands = candidates_map.get(eid, set())
-            safe_cands = [c for c in sorted(raw_cands) if not c.startswith("S1-")]
-            final_candidates[eid] = safe_cands
-
-        return final_candidates
+        evidence_map = self.generate_candidates_with_evidence(s1_records)
+        return {eid: sorted(cands.keys()) for eid, cands in evidence_map.items()}
 
     @staticmethod
     def export_candidate_pairs_tsv(
@@ -489,6 +561,30 @@ class CandidateGenerator:
                 cand_list = candidates_map[s1_id]
                 cands_str = ",".join(cand_list)
                 f.write(f"{s1_id}\t{cands_str}\n")
+
+
+def create_config_h_generator(
+    ngram_top_k: int = 10,
+    ngram_min_sim: float = 0.25,
+    max_bucket_size: int = DEFAULT_MAX_BUCKET_SIZE
+) -> CandidateGenerator:
+    """
+    Factory function creating a CandidateGenerator configured with Configuration H:
+    - Base rules: exact, postal, house, translit, address
+    - Consonant skeleton keys
+    - Address token + name prefix combination keys
+    - Adaptive character n-gram retrieval
+    """
+    return CandidateGenerator(
+        active_rules={
+            "exact", "postal", "house", "translit", "address",
+            "consonant_skel", "addr_name"
+        },
+        use_ngram=True,
+        ngram_top_k=ngram_top_k,
+        ngram_min_sim=ngram_min_sim,
+        max_bucket_size=max_bucket_size
+    )
 
 
 # ==============================================================================

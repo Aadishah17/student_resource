@@ -146,7 +146,10 @@ _LEGAL_SUFFIX_LIST = [
     'பிரைவேட் லிமிடெட்', 'லிமிடெட்',
     'પ્રાઇવેટ લિમિટેડ', 'લિમિટેડ',
     'প্রাইভেট লিমিটেড', 'লিমিটেড',
-    'ପ୍ରାଇଭେଟ୍ ଲିମିଟେଡ୍', 'ଲିମିଟେଡ୍'
+    'ପ୍ରାଇଭେଟ୍ ଲିମିଟେଡ୍', 'ଲିମିଟେଡ୍',
+    # Transliterated Indic legal designations
+    'praivet limited', 'praiveta limiteda', 'praaiveta limiteda', 'praaivet limited',
+    'praaiveta', 'praivet', 'limiteda'
 ]
 
 # Regex using boundary or space matching to work across both ASCII and Unicode scripts

@@ -96,6 +96,24 @@ class TestBlocking(unittest.TestCase):
         cands = self.generator.generate_candidates(s1_typo)
         self.assertIn("S3-002", cands["S1-US-2"])
 
+    def test_consonant_skeleton_retrieval(self):
+        """Verify consonant skeleton matches when vowels or suffixes vary."""
+        gen = CandidateGenerator(active_rules={"consonant_skel"}, use_ngram=False)
+        gen.fit_target_records(self.target_recs)
+        # S1 has different vowels/abbreviation: "Pynr Tch Sltns" vs "Pioneer Tech Solutions"
+        s1 = [gen.prepare_record(("S1-SKEL-1", "Pioneer Technology", "Unknown Addr", "India"))]
+        cands = gen.generate_candidates(s1)
+        self.assertIn("S2-006", cands["S1-SKEL-1"])
+
+    def test_address_token_name_prefix_retrieval(self):
+        """Verify address token + 2-char name prefix recovers match when postal code is missing."""
+        gen = CandidateGenerator(active_rules={"addr_name"}, use_ngram=False)
+        gen.fit_target_records(self.target_recs)
+        # Match via rare address token "bhagya" + name prefix "in"
+        s1 = [gen.prepare_record(("S1-ADDR-1", "International Trading", "Flat 10, Bhagya Nagar, Hyderabad", "India"))]
+        cands = gen.generate_candidates(s1)
+        self.assertIn("S2-004", cands["S1-ADDR-1"])
+
     def test_candidate_safety_no_s1_ids(self):
         """Verify candidate sets never contain S1 entity IDs."""
         s1 = [self.generator.prepare_record(("S1-TEST", "Thermal & Fils", "20 Rue Parmentier", "France"))]
