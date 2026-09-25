@@ -3,8 +3,8 @@ Unit and integration test script for preprocessing.py
 Tests representative business entity records across US, India, and France.
 """
 
-import sys
 import os
+import sys
 import unittest
 import pandas as pd
 
@@ -12,7 +12,7 @@ import pandas as pd
 sys.stdout.reconfigure(encoding='utf-8', errors='backslashreplace')
 
 # Add the source directory to the import path.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "code", "business_entity_resolution", "src")))
 from preprocessing import (
     normalize_name,
     remove_legal_suffix,
@@ -89,7 +89,7 @@ class TestPreprocessing(unittest.TestCase):
         """Test Indic-to-Latin phonetic transliteration across multiple scripts."""
         cases = [
             ("ఇంటర్నేషనల్ సిస్టమ్స్ ప్రైవేట్ లిమిటెడ్", ["intarneshanal", "sistams", "praivet", "limited"]),
-            ("பிரைம் புராஜெக்ட்ஸ் பிரைவேట్ லிமிடெட்", ["piraim", "puraajekts", "piraivet", "limitet"]),
+            ("பிரைம் புராஜெக்ட்ஸ் பிரைவேட் லிமிடெட்", ["piraim", "puraajekts", "piraivet", "limitet"]),
             ("लक्ष्मी डेवलपर्स प्राइवेट लिमिटेड", ["lakshmee", "devalaparsa", "praaiveta", "limiteda"]),
             ("आनंद वेंचर्स", ["aananda", "vencharsa"]),
             ("ଶକ୍ତି ଆଗ୍ରୋ ଲିମିଟେଡ୍", ["shakti", "aagro", "limited"]),
@@ -107,7 +107,6 @@ class TestPreprocessing(unittest.TestCase):
     def test_house_number_and_postal_code(self):
         """Test extraction of house/building numbers and postal codes."""
         cases = [
-            # (address, expected_house_num, expected_postal)
             ("1795 Westchester Drive, High Point, NC 27262", "1795", "27262"),
             ("Plot No 126 Flat No 102 Rajiv Nagar, Hyderabad 500045", "126", "500045"),
             ("K-12, Shop-20, Second Floor Arcade, Jaipur, Rajasthan 302001", "K-12", "302001"),
@@ -150,18 +149,16 @@ class TestPreprocessing(unittest.TestCase):
                 "1795 Westchester Dr, High Point, NC 27262",
                 "H.No 1338, Kolhapur 416001",
                 "20 Rue Parmentier, Dunkerque 59140",
-                None # Missing address
+                None
             ],
             "country": ["US", "India", "France", "Canada"]
         }
         df = pd.DataFrame(data)
         out_df = preprocess_dataframe(df)
 
-        # Check all original columns preserved
         for col in ["entity_id", "business_name", "business_address", "country"]:
             self.assertIn(col, out_df.columns)
 
-        # Check all derived columns present
         expected_cols = [
             "name_normalized", "name_compact", "name_tokens", "name_without_legal_suffix",
             "name_transliterated", "address_normalized", "address_compact", "address_tokens",
@@ -170,12 +167,9 @@ class TestPreprocessing(unittest.TestCase):
         for col in expected_cols:
             self.assertIn(col, out_df.columns)
 
-        # Check missing address row handled safely
         self.assertEqual(out_df.loc[3, "address_normalized"], "")
         self.assertEqual(out_df.loc[3, "postal_code"], "")
         self.assertEqual(out_df.loc[3, "numeric_tokens"], ())
-
-        # Check Indic transliteration
         self.assertIn("lakshmee", out_df.loc[1, "name_transliterated"])
 
 

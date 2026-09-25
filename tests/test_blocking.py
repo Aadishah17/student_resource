@@ -20,7 +20,7 @@ import tempfile
 sys.stdout.reconfigure(encoding='utf-8', errors='backslashreplace')
 
 # Add src to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "code", "business_entity_resolution", "src")))
 
 from blocking import (
     InvertedIndexBlocker,
@@ -66,7 +66,6 @@ class TestBlocking(unittest.TestCase):
 
         us_matches = cands["S1-US-1"]
         self.assertIn("S2-003", us_matches)
-        # Verify no Indian or French records leaked
         for non_us_id in ["S2-004", "S3-005", "S2-006", "S2-007"]:
             self.assertNotIn(non_us_id, us_matches)
 
@@ -78,7 +77,6 @@ class TestBlocking(unittest.TestCase):
 
     def test_transliteration_cross_script_blocking(self):
         """Verify Indic transliterated records match English/Latin S1 queries."""
-        # Query: English "International Systems" matching Telugu "ఇంటర్నేషనల్ సిస్టమ్స్"
         s1_telugu = [self.generator.prepare_record(("S1-IND-1", "International Systems Pvt Ltd", "Bhagya Nagar, Telangana", "India"))]
         cands = self.generator.generate_candidates(s1_telugu)
         self.assertIn("S2-004", cands["S1-IND-1"])
@@ -91,7 +89,6 @@ class TestBlocking(unittest.TestCase):
 
     def test_ngram_fuzzy_retrieval(self):
         """Verify character n-gram retrieval catches minor spelling typos."""
-        # Typo: "Vision Partnrs" instead of "Vision Partners"
         s1_typo = [self.generator.prepare_record(("S1-US-2", "Vision Partnrs", "Newton Rd", "US"))]
         cands = self.generator.generate_candidates(s1_typo)
         self.assertIn("S3-002", cands["S1-US-2"])
@@ -100,7 +97,6 @@ class TestBlocking(unittest.TestCase):
         """Verify consonant skeleton matches when vowels or suffixes vary."""
         gen = CandidateGenerator(active_rules={"consonant_skel"}, use_ngram=False)
         gen.fit_target_records(self.target_recs)
-        # S1 has different vowels/abbreviation: "Pynr Tch Sltns" vs "Pioneer Tech Solutions"
         s1 = [gen.prepare_record(("S1-SKEL-1", "Pioneer Technology", "Unknown Addr", "India"))]
         cands = gen.generate_candidates(s1)
         self.assertIn("S2-006", cands["S1-SKEL-1"])
@@ -109,7 +105,6 @@ class TestBlocking(unittest.TestCase):
         """Verify address token + 2-char name prefix recovers match when postal code is missing."""
         gen = CandidateGenerator(active_rules={"addr_name"}, use_ngram=False)
         gen.fit_target_records(self.target_recs)
-        # Match via rare address token "bhagya" + name prefix "in"
         s1 = [gen.prepare_record(("S1-ADDR-1", "International Trading", "Flat 10, Bhagya Nagar, Hyderabad", "India"))]
         cands = gen.generate_candidates(s1)
         self.assertIn("S2-004", cands["S1-ADDR-1"])
@@ -126,7 +121,7 @@ class TestBlocking(unittest.TestCase):
         """Verify TSV export conforms strictly to challenge specification."""
         cands = {
             "S1-001": ["S2-001", "S3-002"],
-            "S1-002": []  # Singleton
+            "S1-002": []
         }
         with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".tsv") as tmp:
             tmp_path = tmp.name

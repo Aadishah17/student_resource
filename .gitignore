@@ -28,7 +28,3 @@ output/
 *.log
 *.jsonl
 *.tmp
-
-# Challenge datasets are intentionally kept outside GitHub because individual
-# TSV files exceed GitHub's 100 MB file limit.
-dataset/**/*.tsv

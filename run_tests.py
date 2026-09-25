@@ -15,7 +15,7 @@ import unittest
 def main():
     repo_root = os.path.abspath(os.path.dirname(__file__))
     src_dir = os.path.join(repo_root, "code", "business_entity_resolution", "src")
-    tests_dir = os.path.join(repo_root, "code", "business_entity_resolution", "tests")
+    tests_dir = os.path.join(repo_root, "tests")
 
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)

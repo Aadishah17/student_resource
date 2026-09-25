@@ -26,7 +26,7 @@ import numpy as np
 sys.stdout.reconfigure(encoding='utf-8', errors='backslashreplace')
 
 # Add src to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "code", "business_entity_resolution", "src")))
 
 from features import (
     PairwiseFeatureExtractor,
@@ -99,7 +99,7 @@ class TestPairwiseFeatures(unittest.TestCase):
         feats = self.extractor.extract_features_dict(r1, r2)
 
         self.assertEqual(feats["name_exact"], 0.0)
-        self.assertEqual(feats["name_nosuff_exact"], 1.0)  # Both 'general motors'
+        self.assertEqual(feats["name_nosuff_exact"], 1.0)
         self.assertGreater(feats["name_normalized_levenshtein"], 0.70)
         self.assertGreater(feats["name_token_sort_ratio"], 0.75)
         self.assertGreater(feats["address_token_jaccard"], 0.40)
@@ -115,7 +115,7 @@ class TestPairwiseFeatures(unittest.TestCase):
         })
         r2 = enrich_record_for_features({
             "entity_id": "S3-003",
-            "name": "Microsofft Corporation",  # Typo: 'ff'
+            "name": "Microsofft Corporation",
             "address": "1 Microsoft Way, Redmond, WA 98052",
             "country": "US"
         })
@@ -177,7 +177,7 @@ class TestPairwiseFeatures(unittest.TestCase):
         r2 = enrich_record_for_features({
             "entity_id": "S3-006",
             "name": "United Trading Corp",
-            "address": "",  # Missing address
+            "address": "",
             "country": "US"
         })
         feats = self.extractor.extract_features_dict(r1, r2)
@@ -186,7 +186,6 @@ class TestPairwiseFeatures(unittest.TestCase):
         self.assertEqual(feats["candidate_address_missing"], 1.0)
         self.assertEqual(feats["either_address_missing"], 1.0)
         self.assertEqual(feats["both_address_missing"], 0.0)
-        # Verify address similarities are safely zeroed out
         self.assertEqual(feats["address_exact"], 0.0)
         self.assertEqual(feats["address_normalized_levenshtein"], 0.0)
         self.assertEqual(feats["address_token_jaccard"], 0.0)
@@ -216,7 +215,6 @@ class TestPairwiseFeatures(unittest.TestCase):
 
     def test_cross_script_and_indic_transliteration(self):
         """Verify cross-script detection and transliterated feature alignment."""
-        # Telugu: "ఇంటర్నేషనల్ సిస్టమ్స్" -> "intarneshanal sistams"
         r1 = enrich_record_for_features({
             "entity_id": "S1-008",
             "name": "International Systems Private Limited",
@@ -237,7 +235,6 @@ class TestPairwiseFeatures(unittest.TestCase):
         self.assertEqual(feats["name_has_transliteration"], 1.0)
         self.assertEqual(feats["s1_script_latin"], 1.0)
         self.assertEqual(feats["candidate_script_latin"], 0.0)
-        # Transliterated name should have high similarity with English name
         self.assertGreater(feats["name_translit_normalized_levenshtein"], 0.65)
         self.assertGreater(feats["name_translit_char3_jaccard"], 0.20)
         self.assertGreater(feats["consonant_skeleton_levenshtein"], 0.70)

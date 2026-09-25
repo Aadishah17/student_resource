@@ -1,8 +1,6 @@
 # Keep text files consistent across Windows, macOS, and Linux.
 * text=auto eol=lf
-
 # Treat challenge data as generated artifacts in GitHub language statistics.
-dataset/**/*.tsv linguist-generated=true
-
+dataset/**/*.tsv filter=lfs diff=lfs merge=lfs -text
 # Keep Python source visible as source code.
 *.py linguist-language=Python
