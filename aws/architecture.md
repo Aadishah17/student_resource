@@ -6,15 +6,7 @@ The AWS deployment separated source code, compute, data storage, and permissions
 
 ## Architecture
 
-GitHub
-  |
-  | git clone
-  v
-Amazon EC2
-  |
-  | IAM Instance Role
-  v
-Amazon S3
+![alt text](<architecture.md image.png>)
 
 ## Components
 
