@@ -1,0 +1,20 @@
+{
+  "completed_batches": [
+    "France_batch_0_762",
+    "India_batch_0_2283",
+    "US_batch_0_1955"
+  ],
+  "written_s1_count": 5000,
+  "batch_size": 5000,
+  "max_s2_cands": 60,
+  "max_s3_cands": 90,
+  "max_s1_cands": 150,
+  "threshold": 0.72,
+  "model_path": "C:\\Users\\shaha\\OneDrive\\Desktop\\New folder (3)\\code\\business_entity_resolution\\models\\best_model.json",
+  "created_at": "2026-09-27 13:58:37 UTC",
+  "matching_byte_offset": 201030,
+  "candidate_byte_offset": 8496903,
+  "last_country": "US",
+  "last_batch": "US_batch_0_1955",
+  "last_updated": "2026-09-27 14:08:03 UTC"
+}

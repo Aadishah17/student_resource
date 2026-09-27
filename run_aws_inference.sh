@@ -23,8 +23,10 @@ MODE="${1:-${MODE:-full}}"
 DATA_DIR="${DATA_DIR:-$REPO_ROOT/dataset/test}"
 MODEL_DIR="${MODEL_DIR:-$REPO_ROOT/code/business_entity_resolution/models}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/output}"
-BATCH_SIZE="${BATCH_SIZE:-50000}"
+BATCH_SIZE="${BATCH_SIZE:-10000}"
 THRESHOLD="${THRESHOLD:-0.72}"
+MAX_S2_CANDS="${MAX_S2_CANDS:-60}"
+MAX_S3_CANDS="${MAX_S3_CANDS:-90}"
 FORCE_FRESH="${FORCE_FRESH:-false}"
 MAX_S1="${MAX_S1:-}"
 
@@ -118,6 +120,8 @@ INFERENCE_ARGS=(
     "--output-dir" "$OUTPUT_DIR"
     "--threshold" "$THRESHOLD"
     "--batch-size" "$BATCH_SIZE"
+    "--max-s2-cands" "$MAX_S2_CANDS"
+    "--max-s3-cands" "$MAX_S3_CANDS"
 )
 
 if [ "$FORCE_FRESH" = "true" ]; then

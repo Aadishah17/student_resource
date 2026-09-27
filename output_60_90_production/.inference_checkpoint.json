@@ -1,0 +1,28 @@
+{
+  "completed_batches": [
+    "France_batch_0_10000",
+    "France_batch_10000_20000"
+  ],
+  "written_s1_count": 20000,
+  "batch_size": 10000,
+  "max_s2_cands": 60,
+  "max_s3_cands": 90,
+  "max_s1_cands": 150,
+  "threshold": 0.72,
+  "model_path": "C:\\Users\\shaha\\OneDrive\\Desktop\\New folder (3)\\code\\business_entity_resolution\\models\\best_model.json",
+  "created_at": "2026-09-27 14:13:59 UTC",
+  "matching_byte_offset": 1682520,
+  "candidate_byte_offset": 33923119,
+  "last_country": "France",
+  "last_batch": "France_batch_10000_20000",
+  "last_updated": "2026-09-27 14:18:37 UTC",
+  "last_metrics": {
+    "batch_elapsed_s": 150.6,
+    "throughput_s1_per_s": 66.4,
+    "pct_s2_cands": 45.2,
+    "pct_s3_cands": 54.8,
+    "mean_cands_per_s1": 130.93,
+    "p95_cands_per_s1": 150.0,
+    "peak_ram_mb": 535.59
+  }
+}
