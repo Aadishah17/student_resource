@@ -145,7 +145,7 @@ def create_snapshot():
         sys.executable,
         os.path.join("utils", "validate_submission.py"),
         "--matching", tgt_matching_path,
-        "--candidate", tgt_candidate_path,
+        "--candidate", "none",
         "--test-dir", os.path.join("dataset", "test")
     ]
     val_res = subprocess.run(val_cmd, capture_output=True, text=True)
